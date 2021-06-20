@@ -1,45 +1,19 @@
-import React, { useEffect, useState } from 'react'
-import TextItem from './TextItem'
+import React from "react";
 
-declare function require(path: string): any
+import { ChakraProvider } from "@chakra-ui/react";
+import AppProvider from "./contexts";
 
-function App() {
-  const [selectedTextNodes, setSelectedTextNodes] = useState<any[]>([])
+import { theme } from "./styles/theme";
+import clientStorageAdapter from "./adapters/ClientStorageAdapter";
 
-  const onMessage = (msg) => {
-    if (msg.data.pluginMessage &&  msg.data.pluginMessage.event === 'selected-text-nodes') {
-      setSelectedTextNodes(msg.data.pluginMessage.nodes)
-    }
-  }
+import { Dashboard } from "./ui/Dashboard";
 
-  const handleUpdateText = (figmaNodeID, updatedText) => {
-    parent.postMessage({ pluginMessage: { type: 'update-text', figmaNodeID , text: updatedText } }, '*')
-  }
-
-  useEffect(() => {
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  }, [])
-
-  return <div className="container">
-    <div className="header">
-      <img src={require('./logo.svg')} />
-      <h2>Update Text App</h2>
-    </div>
-    
-    <div>
-      {selectedTextNodes.length === 0 && <div className="select-warning">Select some text in Figma that you wish to edit.</div>}
-      <div className="textList">
-      {selectedTextNodes.map((node, index) => (
-        <TextItem 
-          key={index}
-          node={node}
-          handleUpdateText={handleUpdateText}
-        />
-      ))}
-      </div>
-    </div>
-  </div>
+export function App() {
+  return (
+    <AppProvider>
+      <ChakraProvider theme={theme} colorModeManager={clientStorageAdapter}>
+        <Dashboard />
+      </ChakraProvider>
+    </AppProvider>
+  );
 }
-
-export default App

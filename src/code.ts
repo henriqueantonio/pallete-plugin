@@ -1,42 +1,54 @@
-/// <reference path="../node_modules/@figma/plugin-typings/index.d.ts" />
+import { IMessage } from "./interfaces/IMessage";
+import { IPaintStyles } from "./interfaces/IPaintStyles";
 
-const PREVIEW_ENV = process.env.PREVIEW_ENV
+figma.showUI(__html__, {
+  height: 600,
+  width: 800,
+});
 
+figma.ui.onmessage = async (msg: IMessage) => {
+  const key = msg.payload.key;
+  const value = msg.payload.value;
 
-figma.showUI(__html__);
-
-if (PREVIEW_ENV === 'figma') {
-  figma.ui.resize(300, 200);
-} else {
-  figma.ui.resize(400, 400);
-}
-
-const getSelectedNodes = () => {
-  const selectedTextNodes = figma.currentPage.selection
-    .filter(node => node.type === 'TEXT')
-    .map((node: TextNode) => ({figmaNodeID: node.id, text: node.characters}))
-  figma.ui.postMessage({ event: 'selected-text-nodes', nodes: selectedTextNodes})
-}
-
-figma.ui.onmessage = async (msg) => {
-
-  if (msg.type === "create-text") {
-    const newTextNode = figma.createText()
-    await figma.loadFontAsync(<FontName>newTextNode.fontName);
-    newTextNode.characters = msg.text
-    newTextNode.name = 'Sample Text'
-   
-    figma.currentPage.appendChild(newTextNode);
-     
-
-    figma.currentPage.selection = [newTextNode];
-  }
-  if (msg.type === 'update-text') {
-    const textNode = <TextNode>figma.getNodeById(msg.figmaNodeID)
-    await figma.loadFontAsync(<FontName>textNode.fontName);
-    textNode.characters = msg.text
-    getSelectedNodes()
+  switch (msg.type) {
+    case "storage-get":
+      await handleStorageGet(key);
+      break;
+    case "storage-set":
+      await handleStorageSet(key, value);
+      break;
   }
 };
 
-figma.on("selectionchange", () => getSelectedNodes());
+async function handleStorageGet(key: string) {
+  const storage = await figma.clientStorage.getAsync(key);
+  handlePostMessage(`storage-${key}`, storage);
+}
+
+async function handleStorageSet(key: string, value: any) {
+  await figma.clientStorage.setAsync(key, value);
+  handlePostMessage(`storage-${key}`, value);
+}
+
+function handlePostMessage(type: string, payload: any) {
+  figma.ui.postMessage({
+    type,
+    payload,
+  });
+}
+
+function handlePaintStyles() {
+  const styles = figma.getLocalPaintStyles();
+
+  const styleNames = styles.map((style) => {
+    const paint = style.paints[0] as SolidPaint;
+    return {
+      name: style.name,
+      color: paint.color,
+    } as IPaintStyles;
+  });
+
+  handlePostMessage("paintStyles", styleNames);
+}
+
+handlePaintStyles();
